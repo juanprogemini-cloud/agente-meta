@@ -121,6 +121,7 @@ async function syncReports() {
 
       if (accountInsights.length > 0 && parseFloat(accountInsights[0].spend || 0) > 0) {
         const ai = accountInsights[0];
+        console.log(`📊 Datos encontrados para la fecha: ${ai.date_start} en la cuenta ${account.name}`);
         const accPurchases = parseFloat(ai.actions?.find(a => a.action_type === 'purchase')?.value || 0);
         const accCostPerPurchase = parseFloat(ai.cost_per_action_type?.find(a => a.action_type === 'purchase')?.value || 0);
         const accPurchaseValue = parseFloat(ai.action_values?.find(a => a.action_type === 'purchase')?.value || 0);
@@ -145,6 +146,8 @@ async function syncReports() {
           'Tasa de conversión (%)': accConvRate,
           'Ejecución Script': executionTime,
         });
+      } else {
+        console.log(`ℹ️ No se detectó gasto para 'ayer' en la cuenta ${account.name}.`);
       }
 
       // Obtener campañas con su estado y objetivo

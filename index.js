@@ -82,17 +82,70 @@ async function syncReports() {
       'Ejecución Script',
     ];
 
+    const ACCOUNT_HEADERS = [
+      'Fecha Reporte',
+      'Cuenta',
+      'Estado de la entrega',
+      'Importe gastado (COP)',
+      'ROAS de compras',
+      'Compras',
+      'Coste por compra',
+      'Valor de conversión de compras',
+      'CPM (coste por 1000 impresiones)',
+      'Alcance',
+      'Impresiones',
+      'CTR (tasa de clics en el enlace)',
+      'Tasa de conversión (%)',
+      'Ejecución Script',
+    ];
+
     const campaignSheet = await getOrCreateSheet('Detalle por Campaña', HEADERS);
+    const accountSheet = await getOrCreateSheet('Resumen por Cuenta', ACCOUNT_HEADERS);
 
     console.log('Obteniendo cuentas publicitarias...');
     const me = new User('me');
     const accounts = await me.getAdAccounts(['name', 'id', 'currency']);
 
     const reportData = [];
+    const accountReportData = [];
     const executionTime = new Date().toLocaleString('es-CO');
 
     for (const account of accounts) {
       console.log(`Procesando cuenta: ${account.name}...`);
+
+      // Resumen a nivel de CUENTA
+      const accountInsights = await new AdAccount(account.id).getInsights(
+        ['spend', 'purchase_roas', 'impressions', 'reach', 'cpm', 'outbound_clicks_ctr', 'actions', 'action_values', 'cost_per_action_type', 'date_start'],
+        { date_preset: 'yesterday', level: 'account' }
+      );
+
+      if (accountInsights.length > 0 && parseFloat(accountInsights[0].spend || 0) > 0) {
+        const ai = accountInsights[0];
+        const accPurchases = parseFloat(ai.actions?.find(a => a.action_type === 'purchase')?.value || 0);
+        const accCostPerPurchase = parseFloat(ai.cost_per_action_type?.find(a => a.action_type === 'purchase')?.value || 0);
+        const accPurchaseValue = parseFloat(ai.action_values?.find(a => a.action_type === 'purchase')?.value || 0);
+        const accRoas = ai.purchase_roas ? parseFloat(ai.purchase_roas[0].value).toFixed(2) : '0.00';
+        const accCtr = ai.outbound_clicks_ctr ? parseFloat(ai.outbound_clicks_ctr[0]?.value || 0).toFixed(2) : '0.00';
+        const accImpressions = parseFloat(ai.impressions || 0);
+        const accConvRate = accImpressions > 0 ? ((accPurchases / accImpressions) * 100).toFixed(4) : '0.0000';
+
+        accountReportData.push({
+          'Fecha Reporte': ai.date_start,
+          'Cuenta': account.name,
+          'Estado de la entrega': 'Activo',
+          'Importe gastado (COP)': parseFloat(ai.spend).toFixed(0),
+          'ROAS de compras': accRoas,
+          'Compras': accPurchases,
+          'Coste por compra': accCostPerPurchase.toFixed(0),
+          'Valor de conversión de compras': accPurchaseValue.toFixed(0),
+          'CPM (coste por 1000 impresiones)': parseFloat(ai.cpm || 0).toFixed(0),
+          'Alcance': ai.reach || 0,
+          'Impresiones': accImpressions,
+          'CTR (tasa de clics en el enlace)': accCtr + '%',
+          'Tasa de conversión (%)': accConvRate,
+          'Ejecución Script': executionTime,
+        });
+      }
 
       // Obtener campañas con su estado y objetivo
       const campaigns = await new AdAccount(account.id).getCampaigns(
@@ -182,7 +235,14 @@ async function syncReports() {
       await campaignSheet.addRows(reportData);
       console.log(`✅ ${reportData.length} campañas añadidas al histórico.`);
     } else {
-      console.log('ℹ️ No se encontraron datos con gasto para ayer.');
+      console.log('ℹ️ No se encontraron datos de campañas con gasto para ayer.');
+    }
+
+    if (accountReportData.length > 0) {
+      await accountSheet.addRows(accountReportData);
+      console.log(`✅ ${accountReportData.length} cuentas añadidas al resumen.`);
+    } else {
+      console.log('ℹ️ No se encontraron datos de cuentas con gasto para ayer.');
     }
 
     console.log('✅ Sincronización completada con éxito.');

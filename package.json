@@ -1,0 +1,19 @@
+{
+  "name": "automatizacion-de-reportes-diarios",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "facebook-nodejs-business-sdk": "^24.0.1",
+    "google-auth-library": "^10.6.2",
+    "google-spreadsheet": "^5.2.0"
+  }
+}
